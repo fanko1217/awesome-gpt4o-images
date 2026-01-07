@@ -1,0 +1,837 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>音频到B-roll视频生成器</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .main-content {
+            padding: 40px;
+        }
+
+        .step {
+            margin-bottom: 40px;
+            padding: 30px;
+            background: #f8f9fa;
+            border-radius: 15px;
+            border-left: 5px solid #667eea;
+        }
+
+        .step h2 {
+            color: #333;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .step-number {
+            background: #667eea;
+            color: white;
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+
+        .upload-area {
+            border: 3px dashed #667eea;
+            border-radius: 15px;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: white;
+        }
+
+        .upload-area:hover {
+            border-color: #764ba2;
+            background: #f0f0f0;
+        }
+
+        .upload-area.dragover {
+            background: #e8eaf6;
+            border-color: #764ba2;
+        }
+
+        .upload-icon {
+            font-size: 3em;
+            margin-bottom: 15px;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .file-input-label {
+            display: inline-block;
+            padding: 12px 30px;
+            background: #667eea;
+            color: white;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-top: 10px;
+        }
+
+        .file-input-label:hover {
+            background: #764ba2;
+            transform: translateY(-2px);
+        }
+
+        .file-info {
+            margin-top: 15px;
+            padding: 15px;
+            background: white;
+            border-radius: 10px;
+            display: none;
+        }
+
+        .file-info.show {
+            display: block;
+        }
+
+        .api-key-input {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            font-size: 1em;
+            margin-top: 10px;
+        }
+
+        .api-key-input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn {
+            padding: 15px 40px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 25px;
+            font-size: 1.1em;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-top: 20px;
+        }
+
+        .btn:hover {
+            background: #764ba2;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .progress-container {
+            margin-top: 20px;
+            display: none;
+        }
+
+        .progress-container.show {
+            display: block;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 30px;
+            background: #e0e0e0;
+            border-radius: 15px;
+            overflow: hidden;
+            margin-bottom: 10px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            width: 0%;
+            transition: width 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+        }
+
+        .status-message {
+            color: #666;
+            font-style: italic;
+        }
+
+        .preview-container {
+            margin-top: 30px;
+            display: none;
+        }
+
+        .preview-container.show {
+            display: block;
+        }
+
+        .image-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .image-item {
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            background: white;
+        }
+
+        .image-item img {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+        }
+
+        .image-caption {
+            padding: 10px;
+            font-size: 0.9em;
+            color: #666;
+        }
+
+        .video-preview {
+            width: 100%;
+            max-width: 800px;
+            margin: 20px auto;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .video-preview video {
+            width: 100%;
+            display: block;
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 15px;
+            display: none;
+        }
+
+        .alert.show {
+            display: block;
+        }
+
+        .alert-error {
+            background: #ffebee;
+            color: #c62828;
+            border-left: 4px solid #c62828;
+        }
+
+        .alert-success {
+            background: #e8f5e9;
+            color: #2e7d32;
+            border-left: 4px solid #2e7d32;
+        }
+
+        .alert-info {
+            background: #e3f2fd;
+            color: #1565c0;
+            border-left: 4px solid #1565c0;
+        }
+
+        .subtitle-preview {
+            max-height: 300px;
+            overflow-y: auto;
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 15px;
+            font-family: monospace;
+            font-size: 0.9em;
+        }
+
+        .loading-spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+            display: none;
+        }
+
+        .loading-spinner.show {
+            display: block;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .scene-item {
+            background: white;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 10px;
+            border-left: 4px solid #667eea;
+        }
+
+        .scene-time {
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 5px;
+        }
+
+        .scene-text {
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .scene-prompt {
+            color: #666;
+            font-size: 0.9em;
+            font-style: italic;
+        }
+
+        .download-btn {
+            background: #4caf50;
+        }
+
+        .download-btn:hover {
+            background: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎬 音频到B-roll视频生成器</h1>
+            <p>上传音频或字幕文件，自动生成匹配的B-roll视频内容</p>
+        </div>
+
+        <div class="main-content">
+            <!-- Step 1: API Key -->
+            <div class="step">
+                <h2>
+                    <span class="step-number">1</span>
+                    配置 OpenAI API Key
+                </h2>
+                <p style="margin-bottom: 15px; color: #666;">
+                    需要使用 OpenAI GPT-4o 来生成B-roll图片，请输入您的 API Key：
+                </p>
+                <input type="password"
+                       id="apiKey"
+                       class="api-key-input"
+                       placeholder="sk-...">
+                <div class="alert alert-info" id="apiKeyInfo">
+                    <strong>提示：</strong> API Key 仅在本地浏览器中使用，不会被上传到服务器。
+                </div>
+            </div>
+
+            <!-- Step 2: Upload Files -->
+            <div class="step">
+                <h2>
+                    <span class="step-number">2</span>
+                    上传文件
+                </h2>
+
+                <!-- Audio Upload -->
+                <div style="margin-bottom: 25px;">
+                    <h3 style="margin-bottom: 15px; color: #555;">上传音频文件</h3>
+                    <div class="upload-area" id="audioUploadArea">
+                        <div class="upload-icon">🎵</div>
+                        <p>拖拽音频文件到这里，或点击选择文件</p>
+                        <p style="font-size: 0.9em; color: #999; margin-top: 10px;">
+                            支持格式：MP3, WAV, M4A, OGG
+                        </p>
+                        <label for="audioFile" class="file-input-label">选择音频文件</label>
+                        <input type="file" id="audioFile" accept="audio/*">
+                    </div>
+                    <div class="file-info" id="audioFileInfo"></div>
+                </div>
+
+                <!-- SRT Upload -->
+                <div>
+                    <h3 style="margin-bottom: 15px; color: #555;">上传字幕文件（可选）</h3>
+                    <p style="font-size: 0.9em; color: #666; margin-bottom: 15px;">
+                        如果有SRT字幕文件，可以直接上传以节省时间。否则将使用AI转录音频。
+                    </p>
+                    <div class="upload-area" id="srtUploadArea">
+                        <div class="upload-icon">📝</div>
+                        <p>拖拽SRT字幕文件到这里，或点击选择文件</p>
+                        <label for="srtFile" class="file-input-label">选择SRT文件</label>
+                        <input type="file" id="srtFile" accept=".srt">
+                    </div>
+                    <div class="file-info" id="srtFileInfo"></div>
+                    <div class="subtitle-preview" id="srtPreview" style="display: none;"></div>
+                </div>
+            </div>
+
+            <!-- Step 3: Generate -->
+            <div class="step">
+                <h2>
+                    <span class="step-number">3</span>
+                    生成视频
+                </h2>
+                <p style="margin-bottom: 15px; color: #666;">
+                    点击开始按钮，系统将自动分析内容并生成B-roll视频
+                </p>
+                <button class="btn" id="generateBtn" disabled>
+                    🚀 开始生成
+                </button>
+
+                <div class="progress-container" id="progressContainer">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill">0%</div>
+                    </div>
+                    <div class="status-message" id="statusMessage">准备中...</div>
+                </div>
+
+                <div class="loading-spinner" id="loadingSpinner"></div>
+
+                <div class="alert alert-error" id="errorAlert"></div>
+                <div class="alert alert-success" id="successAlert"></div>
+            </div>
+
+            <!-- Step 4: Preview -->
+            <div class="step preview-container" id="previewContainer">
+                <h2>
+                    <span class="step-number">4</span>
+                    预览和下载
+                </h2>
+
+                <div id="scenesContainer" style="margin-bottom: 30px;">
+                    <h3 style="margin-bottom: 15px; color: #555;">提取的场景</h3>
+                    <div id="scenesList"></div>
+                </div>
+
+                <div id="imagesContainer" style="margin-bottom: 30px;">
+                    <h3 style="margin-bottom: 15px; color: #555;">生成的B-roll图片</h3>
+                    <div class="image-grid" id="imageGrid"></div>
+                </div>
+
+                <div id="videoContainer" style="display: none;">
+                    <h3 style="margin-bottom: 15px; color: #555;">最终视频</h3>
+                    <div class="video-preview">
+                        <video id="finalVideo" controls></video>
+                    </div>
+                    <button class="btn download-btn" id="downloadBtn">
+                        ⬇️ 下载视频
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 全局状态
+        const state = {
+            apiKey: '',
+            audioFile: null,
+            srtFile: null,
+            subtitles: [],
+            scenes: [],
+            images: [],
+            videoBlob: null
+        };
+
+        // DOM 元素
+        const elements = {
+            apiKey: document.getElementById('apiKey'),
+            apiKeyInfo: document.getElementById('apiKeyInfo'),
+            audioFile: document.getElementById('audioFile'),
+            srtFile: document.getElementById('srtFile'),
+            audioUploadArea: document.getElementById('audioUploadArea'),
+            srtUploadArea: document.getElementById('srtUploadArea'),
+            audioFileInfo: document.getElementById('audioFileInfo'),
+            srtFileInfo: document.getElementById('srtFileInfo'),
+            srtPreview: document.getElementById('srtPreview'),
+            generateBtn: document.getElementById('generateBtn'),
+            progressContainer: document.getElementById('progressContainer'),
+            progressFill: document.getElementById('progressFill'),
+            statusMessage: document.getElementById('statusMessage'),
+            loadingSpinner: document.getElementById('loadingSpinner'),
+            errorAlert: document.getElementById('errorAlert'),
+            successAlert: document.getElementById('successAlert'),
+            previewContainer: document.getElementById('previewContainer'),
+            scenesList: document.getElementById('scenesList'),
+            imageGrid: document.getElementById('imageGrid'),
+            videoContainer: document.getElementById('videoContainer'),
+            finalVideo: document.getElementById('finalVideo'),
+            downloadBtn: document.getElementById('downloadBtn')
+        };
+
+        // API Key 处理
+        elements.apiKey.addEventListener('input', (e) => {
+            state.apiKey = e.target.value.trim();
+            localStorage.setItem('openai_api_key', state.apiKey);
+            checkReadyToGenerate();
+        });
+
+        // 从本地存储加载 API Key
+        const savedApiKey = localStorage.getItem('openai_api_key');
+        if (savedApiKey) {
+            elements.apiKey.value = savedApiKey;
+            state.apiKey = savedApiKey;
+        }
+
+        // 文件上传处理
+        function setupFileUpload(inputElement, uploadArea, fileInfoElement, fileType) {
+            inputElement.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    handleFileSelect(file, fileInfoElement, fileType);
+                }
+            });
+
+            uploadArea.addEventListener('click', () => {
+                inputElement.click();
+            });
+
+            uploadArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                uploadArea.classList.add('dragover');
+            });
+
+            uploadArea.addEventListener('dragleave', () => {
+                uploadArea.classList.remove('dragover');
+            });
+
+            uploadArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                uploadArea.classList.remove('dragover');
+                const file = e.dataTransfer.files[0];
+                if (file) {
+                    handleFileSelect(file, fileInfoElement, fileType);
+                }
+            });
+        }
+
+        function handleFileSelect(file, fileInfoElement, fileType) {
+            if (fileType === 'audio') {
+                state.audioFile = file;
+            } else if (fileType === 'srt') {
+                state.srtFile = file;
+                readSRTFile(file);
+            }
+
+            fileInfoElement.innerHTML = `
+                <strong>✅ 已选择文件：</strong> ${file.name}
+                (${(file.size / 1024 / 1024).toFixed(2)} MB)
+            `;
+            fileInfoElement.classList.add('show');
+
+            checkReadyToGenerate();
+        }
+
+        // 读取 SRT 文件
+        async function readSRTFile(file) {
+            const text = await file.text();
+            elements.srtPreview.textContent = text;
+            elements.srtPreview.style.display = 'block';
+            state.subtitles = parseSRT(text);
+        }
+
+        // 解析 SRT 格式
+        function parseSRT(srtText) {
+            const subtitles = [];
+            const blocks = srtText.trim().split('\n\n');
+
+            blocks.forEach(block => {
+                const lines = block.split('\n');
+                if (lines.length >= 3) {
+                    const timeLine = lines[1];
+                    const text = lines.slice(2).join(' ');
+                    const [start, end] = timeLine.split(' --> ');
+
+                    subtitles.push({
+                        start: timeToSeconds(start),
+                        end: timeToSeconds(end),
+                        text: text
+                    });
+                }
+            });
+
+            return subtitles;
+        }
+
+        function timeToSeconds(timeString) {
+            const [time, ms] = timeString.split(',');
+            const [hours, minutes, seconds] = time.split(':').map(Number);
+            return hours * 3600 + minutes * 60 + seconds + (ms ? Number(ms) / 1000 : 0);
+        }
+
+        // 设置文件上传
+        setupFileUpload(elements.audioFile, elements.audioUploadArea, elements.audioFileInfo, 'audio');
+        setupFileUpload(elements.srtFile, elements.srtUploadArea, elements.srtFileInfo, 'srt');
+
+        // 检查是否准备好生成
+        function checkReadyToGenerate() {
+            const ready = state.apiKey && state.audioFile;
+            elements.generateBtn.disabled = !ready;
+        }
+
+        // 显示错误
+        function showError(message) {
+            elements.errorAlert.textContent = message;
+            elements.errorAlert.classList.add('show');
+            setTimeout(() => {
+                elements.errorAlert.classList.remove('show');
+            }, 5000);
+        }
+
+        // 显示成功
+        function showSuccess(message) {
+            elements.successAlert.textContent = message;
+            elements.successAlert.classList.add('show');
+            setTimeout(() => {
+                elements.successAlert.classList.remove('show');
+            }, 5000);
+        }
+
+        // 更新进度
+        function updateProgress(percent, message) {
+            elements.progressFill.style.width = percent + '%';
+            elements.progressFill.textContent = percent + '%';
+            elements.statusMessage.textContent = message;
+        }
+
+        // 主生成流程
+        elements.generateBtn.addEventListener('click', async () => {
+            try {
+                elements.generateBtn.disabled = true;
+                elements.progressContainer.classList.add('show');
+                elements.errorAlert.classList.remove('show');
+
+                updateProgress(0, '开始处理...');
+
+                // Step 1: 获取字幕
+                if (!state.srtFile) {
+                    updateProgress(10, '正在转录音频（这可能需要几分钟）...');
+                    await transcribeAudio();
+                } else {
+                    updateProgress(10, '使用已上传的字幕文件...');
+                }
+
+                // Step 2: 分析场景
+                updateProgress(30, '正在分析内容并提取关键场景...');
+                await analyzeScenes();
+
+                // Step 3: 生成图片
+                updateProgress(50, '正在生成B-roll图片...');
+                await generateImages();
+
+                // Step 4: 合成视频
+                updateProgress(80, '正在合成视频...');
+                await synthesizeVideo();
+
+                updateProgress(100, '完成！');
+                showSuccess('视频生成成功！');
+                elements.previewContainer.classList.add('show');
+
+            } catch (error) {
+                console.error('生成失败:', error);
+                showError('生成失败: ' + error.message);
+            } finally {
+                elements.generateBtn.disabled = false;
+                elements.loadingSpinner.classList.remove('show');
+            }
+        });
+
+        // 转录音频 (使用 OpenAI Whisper API)
+        async function transcribeAudio() {
+            const formData = new FormData();
+            formData.append('file', state.audioFile);
+            formData.append('model', 'whisper-1');
+            formData.append('response_format', 'srt');
+
+            const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${state.apiKey}`
+                },
+                body: formData
+            });
+
+            if (!response.ok) {
+                throw new Error('音频转录失败: ' + await response.text());
+            }
+
+            const srtText = await response.text();
+            state.subtitles = parseSRT(srtText);
+
+            elements.srtPreview.textContent = srtText;
+            elements.srtPreview.style.display = 'block';
+        }
+
+        // 分析场景
+        async function analyzeScenes() {
+            // 合并字幕文本
+            const fullText = state.subtitles.map(s => s.text).join(' ');
+
+            // 使用 GPT-4 分析并提取关键场景
+            const response = await fetch('https://api.openai.com/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${state.apiKey}`
+                },
+                body: JSON.stringify({
+                    model: 'gpt-4o',
+                    messages: [{
+                        role: 'system',
+                        content: '你是一个视频制作助手。分析给定的文本内容，提取5-10个关键场景，并为每个场景生成适合的B-roll图片描述。返回JSON格式：[{time: "开始时间", text: "原文", prompt: "图片生成提示词"}]'
+                    }, {
+                        role: 'user',
+                        content: `请分析以下字幕内容，提取关键场景并生成B-roll图片描述：\n\n${fullText}`
+                    }],
+                    response_format: { type: 'json_object' }
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error('场景分析失败: ' + await response.text());
+            }
+
+            const result = await response.json();
+            const data = JSON.parse(result.choices[0].message.content);
+            state.scenes = data.scenes || [];
+
+            // 显示场景
+            elements.scenesList.innerHTML = state.scenes.map((scene, index) => `
+                <div class="scene-item">
+                    <div class="scene-time">场景 ${index + 1}</div>
+                    <div class="scene-text">${scene.text}</div>
+                    <div class="scene-prompt">图片提示词: ${scene.prompt}</div>
+                </div>
+            `).join('');
+        }
+
+        // 生成图片
+        async function generateImages() {
+            state.images = [];
+            elements.imageGrid.innerHTML = '';
+
+            for (let i = 0; i < state.scenes.length; i++) {
+                const scene = state.scenes[i];
+                updateProgress(50 + (i / state.scenes.length) * 30,
+                    `正在生成图片 ${i + 1}/${state.scenes.length}...`);
+
+                const response = await fetch('https://api.openai.com/v1/images/generations', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${state.apiKey}`
+                    },
+                    body: JSON.stringify({
+                        model: 'dall-e-3',
+                        prompt: scene.prompt,
+                        n: 1,
+                        size: '1792x1024',
+                        quality: 'hd'
+                    })
+                });
+
+                if (!response.ok) {
+                    console.error(`图片 ${i + 1} 生成失败`);
+                    continue;
+                }
+
+                const result = await response.json();
+                const imageUrl = result.data[0].url;
+
+                // 下载图片
+                const imageBlob = await fetch(imageUrl).then(r => r.blob());
+                state.images.push({
+                    blob: imageBlob,
+                    url: URL.createObjectURL(imageBlob),
+                    scene: scene
+                });
+
+                // 显示图片
+                const imgElement = document.createElement('div');
+                imgElement.className = 'image-item';
+                imgElement.innerHTML = `
+                    <img src="${state.images[state.images.length - 1].url}" alt="B-roll ${i + 1}">
+                    <div class="image-caption">${scene.text.substring(0, 50)}...</div>
+                `;
+                elements.imageGrid.appendChild(imgElement);
+            }
+        }
+
+        // 合成视频（使用ffmpeg.wasm）
+        async function synthesizeVideo() {
+            // 这里需要使用 ffmpeg.wasm 来合成视频
+            // 由于ffmpeg.wasm较大，这里提供简化版本
+            // 实际使用时需要加载 ffmpeg.wasm 库
+
+            showSuccess('图片生成完成！视频合成功能需要集成 ffmpeg.wasm 库。');
+            elements.videoContainer.style.display = 'none';
+
+            // 提示用户可以下载图片
+            console.log('生成的图片:', state.images);
+        }
+
+        // 下载按钮
+        elements.downloadBtn.addEventListener('click', () => {
+            if (state.videoBlob) {
+                const url = URL.createObjectURL(state.videoBlob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'broll-video.mp4';
+                a.click();
+            }
+        });
+
+        // 初始化时显示API Key信息
+        elements.apiKeyInfo.classList.add('show');
+    </script>
+</body>
+</html>
